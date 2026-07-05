@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, ShieldCheck, Send, Layers, RefreshCw, 
   ArrowLeft, CheckCircle2, AlertTriangle, Key, ArrowUpRight, 
-  LogOut, Wallet, User, Eye, EyeOff, Radio, Info, Code, Copy, Check
+  LogOut, Wallet, User, Eye, EyeOff, Radio, Info, Code, Copy, Check, Fingerprint
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -35,6 +35,7 @@ export default function AndroidApp() {
 
   // General States
   const [isCopied, setIsCopied] = useState(false);
+  const [isBiometricScanning, setIsBiometricScanning] = useState(false);
 
   // Operator Detection Effect matching Kotlin code
   useEffect(() => {
@@ -83,6 +84,8 @@ export default function AndroidApp() {
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -94,6 +97,7 @@ fun LoginScreen(onLoginSuccess: (token: String, role: String) -> Unit) {
     var password by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf("RETAILER") }
     var mfaRequired by remember { mutableStateOf(false) }
+    var isBiometricVerifying by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().background(BackgroundDark).padding(24.dp),
@@ -114,11 +118,26 @@ fun LoginScreen(onLoginSuccess: (token: String, role: String) -> Unit) {
             }) {
                 Text("AUTHENTICATE GATEWAY")
             }
-        } else {
-            // 2FA Screen verification triggers
-            OutlinedTextField(value = mfaCode, onValueChange = { mfaCode = it })
-            Button(onClick = { onLoginSuccess("mfa-resolved-token", selectedRole) }) {
-                Text("VERIFY & ACCESS")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(onClick = { isBiometricVerifying = true }) {
+                Icon(Icons.Default.Fingerprint, contentDescription = "Fingerprint Login")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("BIOMETRIC FINGERPRINT")
+            }
+        }
+
+        if (isBiometricVerifying) {
+            AlertDialog(
+                onDismissRequest = { isBiometricVerifying = false },
+                title = { Text("Biometric Authentication") },
+                text = { Text("Touch the fingerprint sensor to log in securely") }
+            )
+            LaunchedEffect(Unit) {
+                delay(1800)
+                isBiometricVerifying = false
+                onLoginSuccess("biometric-simulated-token", selectedRole)
             }
         }
     }
@@ -354,6 +373,21 @@ fun WalletScreen(
                             >
                               Authenticate Gateway
                             </button>
+
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setIsBiometricScanning(true);
+                                setTimeout(() => {
+                                  setIsBiometricScanning(false);
+                                  setActiveScreen('dashboard');
+                                }, 1800);
+                              }}
+                              className="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-indigo-400 hover:text-indigo-300 font-bold rounded-xl text-[10px] font-mono tracking-wider mt-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase"
+                            >
+                              <Fingerprint className="h-4 w-4" />
+                              <span>Biometric Fingerprint</span>
+                            </button>
                           </>
                         ) : (
                           <div className="space-y-4">
@@ -398,6 +432,29 @@ fun WalletScreen(
                     <div className="text-center text-[8px] font-mono text-slate-600">
                       SECURE CREDENTIAL CIPHER: SHA-256
                     </div>
+
+                    {isBiometricScanning && (
+                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-50">
+                        <div className="relative">
+                          <div className="absolute inset-0 rounded-full bg-indigo-500/20 blur-md animate-ping" />
+                          <div className="p-4 rounded-full bg-indigo-950/50 border border-indigo-500/30 text-indigo-400 relative">
+                            <Fingerprint className="h-12 w-12 animate-pulse" />
+                          </div>
+                        </div>
+                        <h4 className="text-xs font-bold text-white mt-4">Biometric Sensor Active</h4>
+                        <p className="text-[9px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
+                          Place your finger on the device sensor to verify identity...
+                        </p>
+                        <span className="text-[8px] font-mono text-slate-600 mt-6 block">SECURE HANDSHAKE SIMULATION</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsBiometricScanning(false)}
+                          className="mt-6 px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-mono text-slate-400 hover:text-white cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -627,8 +684,86 @@ fun WalletScreen(
 
                     {/* Dialog success mock inside the phone */}
                     {showSuccessAlert && (
-                      <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in">
-                        <CheckCircle2 className="h-10 w-10 text-emerald-400 mb-3" />
+                      <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-50 animate-fade-in">
+                        {/* Lottie-style Checkmark Animation Container */}
+                        <div id="success-indicator-container" className="relative flex flex-col items-center justify-center mb-4">
+                          {/* Radial Glow */}
+                          <motion.div
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: [0.6, 1.2, 1], opacity: [0, 0.4, 0.25] }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="absolute h-24 w-24 rounded-full bg-emerald-500/30 blur-xl"
+                          />
+
+                          {/* Outer Burst Circles / Rings */}
+                          <motion.div
+                            initial={{ scale: 0.5, opacity: 0.8 }}
+                            animate={{ scale: 1.4, opacity: 0 }}
+                            transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+                            className="absolute h-16 w-16 rounded-full border-2 border-emerald-500/40"
+                          />
+
+                          {/* Particle Sparks */}
+                          {[
+                            { x: -35, y: -35, delay: 0.45 },
+                            { x: 35, y: -35, delay: 0.45 },
+                            { x: -45, y: 0, delay: 0.5 },
+                            { x: 45, y: 0, delay: 0.5 },
+                            { x: -25, y: 35, delay: 0.55 },
+                            { x: 25, y: 35, delay: 0.55 },
+                          ].map((spark, idx) => (
+                            <motion.span
+                              key={idx}
+                              initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+                              animate={{ x: spark.x, y: spark.y, scale: [0.3, 1, 0], opacity: [1, 1, 0] }}
+                              transition={{ delay: spark.delay, duration: 0.6, ease: "easeOut" }}
+                              className="absolute w-1.5 h-1.5 rounded-full bg-emerald-400"
+                            />
+                          ))}
+
+                          {/* Main Circle & Checkmark SVG */}
+                          <motion.div
+                            initial={{ scale: 0.3, opacity: 0 }}
+                            animate={{ scale: [0.3, 1.15, 1], opacity: 1 }}
+                            transition={{ 
+                              type: "spring", 
+                              stiffness: 260, 
+                              damping: 15,
+                              duration: 0.6 
+                            }}
+                            className="relative z-10 h-16 w-16 rounded-full bg-slate-900 border border-emerald-500/20 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                          >
+                            <svg
+                              className="h-9 w-9 text-emerald-400"
+                              viewBox="0 0 52 52"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            >
+                              {/* Circle Draw */}
+                              <motion.circle
+                                cx="26"
+                                cy="26"
+                                r="23"
+                                stroke="currentColor"
+                                strokeDasharray="145"
+                                initial={{ strokeDashoffset: 145 }}
+                                animate={{ strokeDashoffset: 0 }}
+                                transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
+                              />
+                              {/* Checkmark Draw */}
+                              <motion.path
+                                d="M14 27l8 8 16-16"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ delay: 0.45, duration: 0.35, ease: "easeInOut" }}
+                              />
+                            </svg>
+                          </motion.div>
+                        </div>
+
                         <h4 className="text-xs font-bold text-white">Recharge Dispatched</h4>
                         <p className="text-[9px] text-slate-400 mt-1 max-w-[200px] leading-relaxed">
                           Recharge of <strong>${customAmount}</strong> successfully routed to <strong>{rechargeNumber}</strong> via <strong>{detectedOperator?.split(' ')[0]}</strong>.
@@ -639,7 +774,7 @@ fun WalletScreen(
                             setRechargeNumber('');
                             setActiveScreen('dashboard');
                           }}
-                          className="mt-4 px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-mono text-teal-400 cursor-pointer"
+                          className="mt-4 px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-[9px] font-mono text-teal-400 cursor-pointer hover:bg-slate-850 hover:text-teal-300 transition-colors"
                         >
                           OK
                         </button>

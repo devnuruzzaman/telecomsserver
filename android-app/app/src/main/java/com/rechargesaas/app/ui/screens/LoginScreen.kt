@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
@@ -38,6 +39,7 @@ fun LoginScreen(
     var mfaRequired by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isBiometricVerifying by remember { mutableStateOf(false) }
 
     val roles = listOf("RETAILER", "DEALER", "DISTRIBUTOR")
 
@@ -198,6 +200,62 @@ fun LoginScreen(
                         CircularProgressIndicator(color = TextPrimaryDark, modifier = Modifier.size(24.dp))
                     } else {
                         Text("AUTHENTICATE GATEWAY", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Biometric Fingerprint Button
+                OutlinedButton(
+                    onClick = { isBiometricVerifying = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .border(1.dp, CardBorderDark, RoundedCornerShape(12.dp)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryDark),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Biometric Login",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("BIOMETRIC FINGERPRINT", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                if (isBiometricVerifying) {
+                    AlertDialog(
+                        onDismissRequest = { isBiometricVerifying = false },
+                        confirmButton = {
+                            TextButton(onClick = { isBiometricVerifying = false }) {
+                                Text("Cancel", color = AccentRose)
+                            }
+                        },
+                        title = { Text("Biometric Authentication", color = TextPrimaryDark, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+                        text = {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Fingerprint,
+                                    contentDescription = "Fingerprint Sensor",
+                                    tint = PrimaryDark,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Touch the fingerprint sensor to log in securely", color = TextSecondaryDark, fontSize = 12.sp)
+                            }
+                        },
+                        containerColor = SurfaceDark
+                    )
+
+                    // Simulate biometric scan completion
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(1800)
+                        isBiometricVerifying = false
+                        onLoginSuccess("biometric-simulated-token-998877", selectedRole)
                     }
                 }
             } else {

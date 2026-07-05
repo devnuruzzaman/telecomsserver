@@ -6,15 +6,22 @@ import FolderStructure from './components/FolderStructure';
 import Roadmap from './components/Roadmap';
 import SecurityApi from './components/SecurityApi';
 import AndroidApp from './components/AndroidApp';
+import Login from './components/Login';
 import { 
   Layers, Database, Terminal, Calendar, ShieldCheck, Cpu, 
-  Smartphone, BarChart3, Radio, ArrowUpRight, Network
+  Smartphone, BarChart3, Radio, ArrowUpRight, Network, Lock
 } from 'lucide-react';
 
 type TabType = 'dashboard' | 'architecture' | 'database' | 'folders' | 'roadmap' | 'security' | 'android';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+
+  const isLoginPath = window.location.pathname === '/login' || window.location.pathname === '/login/';
+
+  if (isLoginPath) {
+    return <Login />;
+  }
 
   const navigationTabs = [
     { id: 'dashboard' as TabType, label: 'Platform Scope', icon: Layers, desc: 'Target Users & Capabilities' },
@@ -59,6 +66,14 @@ export default function App() {
               <span className="text-slate-400">Arch Standard:</span>
               <span className="text-indigo-400 font-semibold">12-FACTOR APP</span>
             </div>
+
+            <button
+              onClick={() => window.location.href = '/login'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold hover:shadow-[0_0_12px_rgba(99,102,241,0.3)] transition-all cursor-pointer font-sans text-xs"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>B2B Portal Login</span>
+            </button>
           </div>
 
         </div>
