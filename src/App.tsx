@@ -16,6 +16,9 @@ type TabType = 'dashboard' | 'architecture' | 'database' | 'folders' | 'roadmap'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [userRole, setUserRole] = useState<string | null>(() => {
+    return localStorage.getItem('user_role');
+  });
 
   const isLoginPath = window.location.pathname === '/login' || window.location.pathname === '/login/';
 
@@ -67,13 +70,32 @@ export default function App() {
               <span className="text-indigo-400 font-semibold">12-FACTOR APP</span>
             </div>
 
-            <button
-              onClick={() => window.location.href = '/login'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold hover:shadow-[0_0_12px_rgba(99,102,241,0.3)] transition-all cursor-pointer font-sans text-xs"
-            >
-              <Lock className="h-3.5 w-3.5" />
-              <span>B2B Portal Login</span>
-            </button>
+            {userRole ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-900/60 text-emerald-400 font-mono text-xs">
+                  <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Role: <strong className="text-white">{userRole}</strong></span>
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('user_role');
+                    setUserRole(null);
+                    window.location.reload();
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-850 hover:text-white text-slate-400 font-semibold transition-colors cursor-pointer text-xs"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => window.location.href = '/login'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold hover:shadow-[0_0_12px_rgba(99,102,241,0.3)] transition-all cursor-pointer font-sans text-xs"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                <span>B2B Portal Login</span>
+              </button>
+            )}
           </div>
 
         </div>

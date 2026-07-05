@@ -7,8 +7,11 @@ import {
 import { motion } from 'motion/react';
 
 export default function Dashboard() {
-  const [selectedRole, setSelectedRole] = useState(USER_ROLES[0].name);
+  const [selectedRole, setSelectedRole] = useState(() => {
+    return localStorage.getItem('user_role') || USER_ROLES[0].name;
+  });
   const activeRoleInfo = USER_ROLES.find(r => r.name === selectedRole) || USER_ROLES[0];
+  const loggedInRole = localStorage.getItem('user_role');
 
   const highlights = [
     { title: 'Prepaid & Postpaid', desc: 'Auto-detection and multi-gateway routing', icon: Smartphone, color: 'text-teal-400 bg-teal-950/40 border-teal-800/60' },
@@ -32,9 +35,17 @@ export default function Dashboard() {
         <div className="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-teal-500/5 blur-3xl" />
         
         <div className="relative max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-800/60 bg-indigo-950/40 px-3.5 py-1 text-xs font-medium text-indigo-400 tracking-wide">
-            <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-pulse" />
-            Architectural Master Plan
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-800/60 bg-indigo-950/40 px-3.5 py-1 text-xs font-medium text-indigo-400 tracking-wide">
+              <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-pulse" />
+              Architectural Master Plan
+            </div>
+            {loggedInRole && (
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-800/60 bg-emerald-950/40 px-3 py-1 text-xs font-mono text-emerald-400 font-semibold tracking-wide">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                LOGGED IN AS: <span className="uppercase">{loggedInRole}</span>
+              </div>
+            )}
           </div>
           <h1 className="text-4xl md:text-5xl font-bold font-display tracking-tight text-white leading-[1.1]">
             Enterprise Telecom <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-400">Recharge & Billing</span> SaaS Platform

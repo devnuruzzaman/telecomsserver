@@ -29,7 +29,14 @@ export default function Login() {
         setSuccessMessage('Credential check passed! Multi-Factor Authentication code is required.');
       } else {
         // Direct route for others
-        setSuccessMessage('Authentication successful! Routing to merchant console...');
+        const roleMapping: Record<string, string> = {
+          CUSTOMER: 'Customer',
+          SUPPORT: 'Support Team'
+        };
+        const mappedRole = roleMapping[role] || 'Customer';
+        localStorage.setItem('user_role', mappedRole);
+
+        setSuccessMessage(`Authentication successful! Routing to ${mappedRole} console...`);
         setTimeout(() => {
           // Go to home/sandbox dashboard
           window.location.href = '/';
@@ -46,7 +53,14 @@ export default function Login() {
     setTimeout(() => {
       setIsLoading(false);
       if (mfaCode === '123456') {
-        setSuccessMessage('2FA code verified. Secure token handshake established!');
+        const roleMapping: Record<string, string> = {
+          RETAILER: 'Retailer',
+          ADMIN: 'Admin'
+        };
+        const mappedRole = roleMapping[role] || 'Retailer';
+        localStorage.setItem('user_role', mappedRole);
+
+        setSuccessMessage(`2FA code verified. Secure token handshake established! Routing to ${mappedRole} console...`);
         setTimeout(() => {
           window.location.href = '/';
         }, 1200);
