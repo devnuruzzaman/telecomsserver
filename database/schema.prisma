@@ -1,0 +1,387 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  DISTRIBUTOR
+  MASTER_DEALER
+  DEALER
+  RETAILER
+  AGENT
+  CUSTOMER
+  SUPPORT
+  FINANCE
+}
+
+enum RechargeStatus {
+  INITIATED
+  QUEUED
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum RechargeType {
+  PREPAID
+  POSTPAID
+}
+
+enum PackageType {
+  DATA
+  VOICE
+  SMS
+  COMBO
+  OFFER
+}
+
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RE_SUBMISSION_REQUIRED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionPurpose {
+  RECHARGE
+  RECHARGE_COMMISSION
+  CASHBACK
+  WALLET_TRANSFER
+  TOPUP
+  REFUND
+  SYSTEM_ADJUSTMENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationChannel {
+  SMS
+  EMAIL
+  WHATSAPP
+  PUSH
+}
+
+model User {
+  id                 String           @id @default(uuid()) @db.Uuid
+  email              String           @unique @db.VarChar(255)
+  phone              String           @unique @db.VarChar(20)
+  passwordHash       String           @map("password_hash") @db.VarChar(255)
+  role               Role             @default(CUSTOMER)
+  isActive           Boolean          @default(true) @map("is_active")
+  kycStatus          KYCStatus        @default(PENDING) @map("kyc_status")
+  twoFactorSecret    String?          @map("two_factor_secret") @db.VarChar(100)
+  isTwoFactorEnabled Boolean          @default(false) @map("is_two_factor_enabled")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz
+
+  // Relations
+  profile            Profile?
+  wallet             Wallet?
+  recharges          Recharge[]       @relation("UserRecharges")
+  auditLogs          AuditLog[]
+  kycVerifications   KYCVerification[]
+  apiKeys            ApiKey[]
+  webhookSubs        WebhookSubscription[]
+  supportTickets     SupportTicket[]  @relation("CustomerTickets")
+  assignedTickets    SupportTicket[]  @relation("AgentTickets")
+  messages           LiveChatMessage[]
+  notifications      Notification[]
+
+  @@index([role])
+  @@index([kycStatus])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  firstName   String   @map("first_name") @db.VarChar(100)
+  lastName    String   @map("last_name") @db.VarChar(100)
+  companyName String?  @map("company_name") @db.VarChar(150)
+  address     String?  @db.Text
+  city        String?  @db.VarChar(100)
+  country     String?  @db.VarChar(100)
+  avatarUrl   String?  @map("avatar_url") @db.VarChar(512)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Wallet {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  mainBalance       Decimal  @default(0.0000) @map("main_balance") @db.Decimal(15, 4)
+  commissionBalance Decimal  @default(0.0000) @map("commission_balance") @db.Decimal(15, 4)
+  cashbackBalance   Decimal  @default(0.0000) @map("cashback_balance") @db.Decimal(15, 4)
+  currency          String   @default("USD") @db.VarChar(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id              String             @id @default(uuid()) @db.Uuid
+  walletId        String             @map("wallet_id") @db.Uuid
+  type            TransactionType
+  purpose         TransactionPurpose
+  amount          Decimal            @db.Decimal(15, 4)
+  previousBalance Decimal            @map("previous_balance") @db.Decimal(15, 4)
+  currentBalance  Decimal            @map("current_balance") @db.Decimal(15, 4)
+  referenceId     String?            @map("reference_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  wallet          Wallet             @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([type])
+  @@index([purpose])
+  @@index([referenceId])
+  @@map("transactions")
+}
+
+model Operator {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique @db.VarChar(100)
+  code        String     @unique @db.VarChar(20)
+  countryCode String     @map("country_code") @db.VarChar(5)
+  logoUrl     String?    @map("logo_url") @db.VarChar(512)
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  packages    Package[]
+  recharges   Recharge[]
+
+  @@index([code])
+  @@index([countryCode])
+  @@map("operators")
+}
+
+model Package {
+  id           String      @id @default(uuid()) @db.Uuid
+  operatorId   String      @map("operator_id") @db.Uuid
+  name         String      @db.VarChar(150)
+  type         PackageType
+  price        Decimal     @db.Decimal(10, 2)
+  validityDays Int         @map("validity_days")
+  description  String?     @db.Text
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  operator     Operator    @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  recharges    Recharge[]
+
+  @@index([operatorId, type])
+  @@map("packages")
+}
+
+model Recharge {
+  id                String         @id @default(uuid()) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  operatorId        String         @map("operator_id") @db.Uuid
+  packageId         String?        @map("package_id") @db.Uuid
+  recipientNumber   String         @map("recipient_number") @db.VarChar(30)
+  amount            Decimal        @db.Decimal(12, 4)
+  status            RechargeStatus @default(INITIATED)
+  type              RechargeType   @default(PREPAID)
+  gatewayReference  String?        @map("gateway_reference") @db.VarChar(255)
+  gatewayResponse   Json?          @map("gateway_response")
+  attempts          Int            @default(1)
+  clientReference   String?        @map("client_reference") @db.VarChar(100)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  completedAt       DateTime?      @map("completed_at") @db.Timestamptz
+
+  // Relations
+  user              User           @relation("UserRecharges", fields: [userId], references: [id])
+  operator          Operator       @relation(fields: [operatorId], references: [id])
+  package           Package?       @relation(fields: [packageId], references: [id])
+  commissions       CommissionDistribution[]
+
+  @@index([userId])
+  @@index([status, createdAt])
+  @@index([recipientNumber])
+  @@map("recharges")
+}
+
+model CommissionRule {
+  id         String   @id @default(uuid()) @db.Uuid
+  role       Role
+  operatorId String?  @map("operator_id") @db.Uuid
+  packageId  String?  @map("package_id") @db.Uuid
+  percentage Decimal  @db.Decimal(5, 2) // e.g. 2.50%
+  flatRate   Decimal  @default(0.0000) @map("flat_rate") @db.Decimal(10, 4)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([role, operatorId, packageId])
+  @@map("commission_rules")
+}
+
+model CommissionDistribution {
+  id         String   @id @default(uuid()) @db.Uuid
+  rechargeId String   @map("recharge_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  amount     Decimal  @db.Decimal(12, 4)
+  percentage Decimal  @db.Decimal(5, 2)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  recharge   Recharge @relation(fields: [rechargeId], references: [id], onDelete: Cascade)
+
+  @@index([rechargeId])
+  @@index([userId])
+  @@map("commission_distributions")
+}
+
+model KYCVerification {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  documentType String    @map("document_type") @db.VarChar(50)
+  documentRef  String    @map("document_ref") @db.VarChar(100)
+  frontImgUrl  String    @map("front_img_url") @db.VarChar(512)
+  backImgUrl   String?   @map("back_img_url") @db.VarChar(512)
+  status       KYCStatus @default(PENDING)
+  verifiedBy   String?   @map("verified_by") @db.Uuid
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("kyc_verifications")
+}
+
+model ApiKey {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  keyPrefix    String   @map("key_prefix") @db.VarChar(8)
+  keyHash      String   @map("key_hash") @db.VarChar(255)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz
+
+  // Relations
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([keyPrefix])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model WebhookSubscription {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  callbackUrl      String   @map("callback_url") @db.VarChar(512)
+  secretSigningKey String   @map("secret_signing_key") @db.VarChar(255)
+  subscribedEvents String[] @map("subscribed_events") // e.g., ["RECHARGE.SUCCESS", "RECHARGE.FAILED"]
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("webhook_subscriptions")
+}
+
+model SupportTicket {
+  id          String       @id @default(uuid()) @db.Uuid
+  customerId  String       @map("customer_id") @db.Uuid
+  assignedTo  String?      @map("assigned_to") @db.Uuid
+  subject     String       @db.VarChar(255)
+  status      TicketStatus @default(OPEN)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  customer    User         @relation("CustomerTickets", fields: [customerId], references: [id], onDelete: Cascade)
+  agent       User?        @relation("AgentTickets", fields: [assignedTo], references: [id])
+  messages    LiveChatMessage[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model LiveChatMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  message    String   @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender     User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("live_chat_messages")
+}
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  channel   NotificationChannel
+  title     String              @db.VarChar(150)
+  content   String              @db.Text
+  isSent    Boolean             @default(false) @map("is_sent")
+  sentAt    DateTime?           @map("sent_at") @db.Timestamptz
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([channel])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String   @db.VarChar(100)
+  ipAddress String   @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.VarChar(255)
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, action])
+  @@map("audit_logs")
+}
